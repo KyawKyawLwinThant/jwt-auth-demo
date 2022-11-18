@@ -19,4 +19,10 @@ public interface UserDao extends CrudRepository<User,Long> {
 """)
     Optional<User> findByIdAndTokensRefreshToken(Long id, String refreshToken
             , LocalDateTime expiredAt);
+
+    @Query("""
+    select u.* from user u inner join password_recovery pr on u.id=pr.user
+    where pr.token =:token
+""")
+    Optional<User> findPasswordRecoveryToken(String token);
 }

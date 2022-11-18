@@ -97,6 +97,28 @@ public class AuthController {
         return new LogoutResponse("successful logout!");
     }
 
+    record ForgotRequest(String email){}
+    record ForgotResponse(String message){}
+
+    @PostMapping("/forgot")
+    public ForgotResponse forgot(@RequestBody ForgotRequest forgotRequest,
+                                 HttpServletRequest request
+    ){
+        var orginUrl = request.getHeader("Origin");
+        userService.forget(forgotRequest.email,orginUrl);
+        return new ForgotResponse("success");
+    }
+    record ResetRequest(String token,String password,
+                        @JsonProperty("password_confirm")String passwordConfirm){}
+    record ResetResponse(String message){}
+    @PostMapping("/reset")
+    public ResetResponse reset(@RequestBody ResetRequest resetRequest){
+        userService.reset(resetRequest.token(),
+                resetRequest.password(),
+                resetRequest.passwordConfirm());
+        return new ResetResponse("success reset password");
+    }
+
 
 
 

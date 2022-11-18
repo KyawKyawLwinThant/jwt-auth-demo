@@ -1,5 +1,6 @@
 package com.example.authjwtdemo.service;
 
+import com.example.authjwtdemo.data.PasswordRecovery;
 import com.example.authjwtdemo.data.Token;
 import com.example.authjwtdemo.data.User;
 import com.example.authjwtdemo.data.UserDao;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Objects;
+import java.util.UUID;
 
 @Service
 public class UserService {
@@ -21,14 +23,18 @@ public class UserService {
     private final String accessSecretKey;
     private final String refreshSecretKey;
 
+    private final MailService mailService;
+
     public UserService(UserDao userDao
             , PasswordEncoder passwordEncoder
             , @Value("${application.security.access-token-secret}") String accessSecretKey
-            ,@Value("${application.security.refresh-token-secret}") String refreshSecretKey) {
+            ,@Value("${application.security.refresh-token-secret}") String refreshSecretKey,
+                       MailService mailService) {
         this.userDao = userDao;
         this.passwordEncoder = passwordEncoder;
         this.accessSecretKey = accessSecretKey;
         this.refreshSecretKey = refreshSecretKey;
+        this.mailService=mailService;
     }
 
     public User register(String firstName, String lastName,
@@ -97,4 +103,26 @@ public class UserService {
     }
 
 
+    public void forget(String email, String originUrl) {
+
+        var token = UUID.randomUUID().toString()
+                .replace("-","");
+        var user=userDao.findUserByEmail(email)
+                .orElseThrow(UserNotFoundError::new);
+        user.addPasswordRecovery(new PasswordRecovery(token));
+        mailService.sendForgotMessage(email,token,originUrl);
+        userDao.save(user);
+    }
+
+    public void reset(String token, String password, String passwordConfirm) {
+        if(!Objects.equals(password,passwordConfirm)){
+            throw new PasswordsDontMatchError();
+        }
+        var user =userDao.findPasswordRecoveryToken(token)
+                .orElseThrow(InvalidTokenError::new);
+        user.setPassword(passwordEncoder.encode(password));
+        user.removePasswordRecoveryIf(passwordRecovery ->
+                Objects.equals(passwordRecovery.token(),token));
+        userDao.save(user);
+    }
 }
